@@ -1,2 +1,2 @@
 # sheRanks
-A PageRank analysis of Tasty.com's most popular one-pot recipes.
+A PageRank analysis of Buzzfeed Tasty (tasty.co) - Popular Recipes	
