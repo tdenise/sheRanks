@@ -6,7 +6,7 @@ import java.io.*;
 public class CrawlerExample {
 
     public static void main(String[] args) throws IOException {
-        String URL = "https://tasty.co/recipe/easter-savory-pie-pizza-rustica";
+        String URL = "https://tasty.co";
         Crawler crawler = new Crawler (URL);
         crawler.crawl();
     }
