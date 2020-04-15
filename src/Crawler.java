@@ -1,6 +1,3 @@
-/*
-  Crawler object class.
- */
 import java.io.*;
 import java.util.*;
 
@@ -10,21 +7,20 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-
+/**
+ * Crawler object class.
+ **/
 public class Crawler {
     private String seed;
     private Set<String> links; //extracted links
-    private int exportedCt; //number of URLs exported
     private File dir; // root directory for output
     private File recipesFile; // csv file with crawl data
 
     private static int crawlCt; // number of completed crawls
 
-    // constructor takes in seed URL
     public Crawler(String url) {
         this.seed = url;
         this.links = new HashSet<>();
-        this.exportedCt = 0;
 
         // create the output file
         this.dir = new File(System.getProperty("user.dir"));
@@ -34,41 +30,42 @@ public class Crawler {
         // add seed URL to links arraylist
         this.links.add(this.seed);
 
+        // initialize counter for universal number of crawls
         crawlCt = 0;
     }
 
     public void crawl() {
-        crawl(this.seed);
+        crawl(this.seed, "");
+        System.out.println("Done! Check out the " + recipesFile.getPath() + " file for results.");
     }
 
-    private void crawl(String url) {
+    private void crawl(String url, String inlink) {
         try {
-            // stop crawling after 100 links have been crawled
-            if(crawlCt > 100) {
-                return;
-            }
-
-            Document d = Jsoup.connect(url).get();
-            String entry = "";
-
-            String recipeName = grabRecipeName(d);
-            // extract "would make again" percentage (tips-score-heading)
-            int percentage = grabPercentage(d);
-            // extract tip count (tips-count-heading)
-            int tipsCt = grabTipsCt(d);
-
-            // add recipe, percentage, tips ct to csv
-            entry += recipeName + "," + percentage + "," + tipsCt;
-            addCsvEntry(entry);
+            Document d = Jsoup.connect(url).maxBodySize(0).get();
 
             // extract page outlinks
             Set<String> outlinks = getPageLinks(d);
 
+            if (url.contains("/recipe")) {
+                // stop crawling after 100 recipes have been crawled
+                if (crawlCt++ > 100) {
+                    return;
+                }
+
+                // extract name of recipe
+                String recipeName = d.title();
+
+                // extract "would make again" percentage
+                int percentage = grabPercentage(d);
+
+                // add recipe, url, and percentage to csv
+                addCsvEntry(recipeName, url, percentage, inlink);
+            }
+
             // crawl each outlink
-            outlinks.forEach(link -> {
-                crawlCt++;
-                crawl(link);
-            });
+            for (String link : outlinks) {
+                    crawl(link, url);
+            }
 
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -77,8 +74,24 @@ public class Crawler {
 
     private void createOutFile() {
         try {
-            this.recipesFile = new File(dir.getPath() + "recipes.csv");
+            this.recipesFile = new File(dir.getPath() + "/recipes.csv");
             this.recipesFile.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private int grabPercentage(Document d) {
+        Elements targets = d.getElementsByClass("tips-score-heading");
+        String percentageStr = targets.get(0).text();
+        percentageStr = percentageStr.split("%")[0];
+        return Integer.parseInt(percentageStr);
+    }
+
+    private void addCsvEntry(String recipeName, String url, int percentage, String inlink) {
+        try (FileWriter writer = new FileWriter(this.recipesFile, true)) {
+            String entry = recipeName + "," + url + "," + percentage + "," + inlink + "\n";
+            writer.write(entry);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -89,10 +102,10 @@ public class Crawler {
         try {
             Elements urls = d.select("a[href]");
 
-            for (Element url : urls) {
-                String href = url.attr("href");
-                // is actually a link
-                if (isLink(href)) {
+            for (Element link : urls) {
+                String href = link.attr("href").startsWith("/") ? "https://tasty.co" + link.attr("href") : link.attr("href");
+                // check to see if link is a tasty.co recipe link
+                if (isLink(href) && !links.contains(href)) {
                     links.add(href);
                     outlinks.add(href);
                 }
@@ -106,6 +119,6 @@ public class Crawler {
     }
 
     private boolean isLink(String href) {
-        return href.startsWith("http");
+        return href.contains("tasty.co/recipe") || href.contains("/topic");
     }
 } //end Crawler
