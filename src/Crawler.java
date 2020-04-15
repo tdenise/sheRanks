@@ -18,6 +18,9 @@ public class Crawler {
 
     private static int crawlCt; // number of completed crawls
 
+    // TODO: Keep track of all inlinks
+    // TODO: Crawl more links
+
     public Crawler(String url) {
         this.seed = url;
         this.links = new HashSet<>();
@@ -48,7 +51,7 @@ public class Crawler {
 
             if (url.contains("/recipe")) {
                 // stop crawling after 100 recipes have been crawled
-                if (crawlCt++ > 100) {
+                if (crawlCt > 100) {
                     return;
                 }
 
@@ -92,6 +95,7 @@ public class Crawler {
         try (FileWriter writer = new FileWriter(this.recipesFile, true)) {
             String entry = recipeName + "," + url + "," + percentage + "," + inlink + "\n";
             writer.write(entry);
+            crawlCt++;
         } catch (IOException e) {
             e.printStackTrace();
         }
