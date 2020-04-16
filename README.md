@@ -6,6 +6,6 @@ _Since related recipes are generated dynamically, Jsoup can't see them. Instead,
 
 Output Format
 
-Recipe Name | Recipe URL | "Would Make Again" % | Inlinks
+Recipe Name | Recipe URL | "Would Make Again" % | Inlink
 ------ | ------------ | ---------------------- | ------
 Southwestern Sweet Potato Toast Recipe by Tasty | https://tasty.co/recipe/southwestern-sweet-potato-toast | 80 | https://tasty.co/topic/game-day
