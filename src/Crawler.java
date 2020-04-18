@@ -1,6 +1,8 @@
 import java.io.*;
 import java.util.*;
 
+import com.google.common.collect.Sets;
+
 //import Jsoup library
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -21,23 +23,25 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class Crawler {
     private String seed;
     private Map<String, String> recipeLinks; // map of recipes to their inlinks
-    private Set<String> pages; // set to keep track of the recipe pages
-    private int droppedCt; // counter for recipes that didn't load properly
+    private Set<String> crawled; // set to keep track of the recipe pages
+
     private WebDriver driver; // selenium web driver
 
     private File dir; // root directory for output
     private File recipesFile; // csv file with crawl data
 
-    // TODO: Keep track of all inlinks
-
     public Crawler(String url) {
         this.seed = url;
         this.recipeLinks = new HashMap<>();
-        this.pages = new HashSet<>();
-        this.droppedCt = 0;
+        this.crawled = new HashSet<>();
 
-        // chrome web driver settings
-        this.driver = new ChromeDriver();
+        // chrome web driver settings (uncomment appropriate webdriver settings)
+        System.setProperty("webdriver.chrome.driver", "src/resources/chromedriver"); // mac
+//        System.setProperty("webdriver.chrome.driver", "src/resources/chromedriver.exe"); // windows
+
+        // options for web driver
+        ChromeOptions options = new ChromeOptions().addArguments("--headless"); // run a chrome browser in the background
+        this.driver = new ChromeDriver(options);
 
         // create the output file
         this.dir = new File(System.getProperty("user.dir"));
@@ -49,12 +53,17 @@ public class Crawler {
     }
 
     public void crawl() {
-        // collect recipes starting with the seed
+        // crawl recipes starting with the seed
         crawl(this.seed);
 
-        System.out.println("Number of dropped links: " + droppedCt);
+        // crawl the remaining links
+        Sets.difference(recipeLinks.keySet(), crawled).forEach(link -> {
+            if (!crawled.contains(link)) {
+                crawl(link);
+            }
+        });
 
-        if (recipesFile.length() > 106) {
+        if (recipesFile.length() > 110) {
             System.out.println("Done! Check out the " + recipesFile.getPath() + " file for results.");
         } else {
             System.out.println("Oops! Looks like the " + recipesFile.getPath() + " file is empty. Something went wrong :/");
@@ -65,53 +74,26 @@ public class Crawler {
     }
 
     private void crawl(String url) {
-        // crawl until we collect at most 300 recipes
-        if (pages.size() >= 300) {
-            return;
-        }
-
         try {
-            // use automated chrome to open up the url
+            // use automated chrome to open up the url and then grab the document
             driver.get(url);
+            Document d = url.contains("/recipe") ? crawlRecipe(url) : Jsoup.parse(driver.getPageSource());
 
-            // generate dynamic content by scrolling to bottom
-            WebElement element = driver.findElement(By.className("recipe-submit-cta"));
-            ((JavascriptExecutor) driver)
-                    .executeScript("arguments[0].scrollIntoView();", element);
-            WebDriverWait wait = new WebDriverWait(driver, 5);
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("related-recipes")));
+            // stop crawling outlinks once we've collected at most 200 recipes
+            if (recipeLinks.size() >= 200) {
+                return;
+            }
 
-            // parse the html after the related recipes have loaded
-            Document d = Jsoup.parse(driver.getPageSource());
+            // collect outlinks
+            Set<String> outlinks = getOutlinks(d, url);
 
-            // extract name of recipe
-            String recipeName = d.title().replace(",", "-");
-
-            // extract "would make again" percentage
-            String percentage = grabPercentage(d);
-
-            // extract number of tips
-            String tipsCt = grabTipsCt(d);
-
-            // get the inlink for the current link
-            String inlink = recipeLinks.get(url);
-
-            // add recipe, url, percentage, and inlink to csv
-            addCsvEntry(recipeName, url, percentage, tipsCt, inlink);
-
-            // extract page outlinks
-            Set<String> outlinks = getPageLinks(d, url);
-            pages.add(url);
-
-            // crawl the outlinks of the outlinks
+            // crawl the outlinks
             for (String link : outlinks) {
                 crawl(link);
             }
         } catch (TimeoutException | NoSuchElementException e) {
-            droppedCt++;
             System.out.println("Couldn't load dynamic content for " + url);
         } catch (IndexOutOfBoundsException e) {
-            droppedCt++;
             System.out.println("Couldn't grab percentage for " + url);
         }
     }
@@ -119,10 +101,40 @@ public class Crawler {
     private void createOutFile() {
         this.recipesFile = new File(dir.getPath() + "/recipes.csv");
         try (FileWriter writer = new FileWriter(this.recipesFile)) {
-            writer.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count,Inlink\n");
+            writer.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count,Inlink");
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private Document crawlRecipe(String url) {
+        // generate dynamic content by scrolling to bottom
+        WebElement element = driver.findElement(By.className("recipe-submit-cta"));
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].scrollIntoView();", element);
+        WebDriverWait wait = new WebDriverWait(driver, 5);
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("related-recipes")));
+
+        // parse the html after the related recipes have loaded
+        Document d = Jsoup.parse(driver.getPageSource());
+
+        // extract name of recipe
+        String recipeName = d.title().replace(",", "-");
+
+        // extract "would make again" percentage
+        String percentage = grabPercentage(d);
+
+        // extract number of tips
+        String tipsCt = grabTipsCt(d);
+
+        // get the inlink for the current link
+        String inlink = recipeLinks.get(url);
+
+        // add recipe, url, percentage, and inlink to csv
+        addCsvEntry(recipeName, url, percentage, tipsCt, inlink);
+        crawled.add(url);
+
+        return d;
     }
 
     private String grabPercentage(Document d) {
@@ -139,7 +151,7 @@ public class Crawler {
 
     private void addCsvEntry(String... inputs) {
         try (FileWriter writer = new FileWriter(this.recipesFile, true)) {
-            StringBuilder entry = new StringBuilder();
+            StringBuilder entry = new StringBuilder().append("\n");
             for (int i = 0; i < inputs.length; i++) {
                 String input = inputs[i];
                 entry.append(input);
@@ -147,21 +159,20 @@ public class Crawler {
                     entry.append(",");
                 }
             }
-            entry.append("\n");
             writer.write(entry.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private Set<String> getPageLinks(Document d, String inlink) {
+    private Set<String> getOutlinks(Document d, String inlink) {
         Set<String> outlinks = new HashSet<>();
         try {
             Elements urls = d.select("a[href]");
 
             for (Element link : urls) {
                 String href = link.attr("href").startsWith("/") ? "https://tasty.co" + link.attr("href") : link.attr("href");
-                // check to see if link is a tasty.co recipe link
+                // check to see if link is a tasty.co link
                 if (isLink(href) && !recipeLinks.containsKey(href)) {
                     recipeLinks.put(href, inlink);
                     outlinks.add(href);
@@ -175,6 +186,6 @@ public class Crawler {
     }
 
     private boolean isLink(String href) {
-        return href.contains("tasty.co") && href.contains("/recipe");
+        return href.contains("tasty.co") && (href.contains("/recipe") || href.contains("/topic"));
     }
 } //end Crawler
