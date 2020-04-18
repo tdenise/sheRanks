@@ -45,9 +45,9 @@ The title of the recipe
 The link to the recipe
 
 #### "Would Make Again" % and Number of Tips
+!["Would Make Again" % and Number of Tips](https://user-images.githubusercontent.com/5050718/79623571-e6632980-80d1-11ea-9d6e-844a63c43d45.png)
 
-
-### Inlink
+#### Inlink
 The link that led the crawler to this recipe
 
 ## Built With 🛠
