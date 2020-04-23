@@ -93,7 +93,7 @@ public class Crawler {
 
             // crawl the outlinks
             for (String link : outlinks) {
-                if (!crawled.contains(link)) {
+                if (link.contains("/recipe") && !crawled.contains(link)) {
                     crawl(link);
                 }
             }
@@ -172,7 +172,7 @@ public class Crawler {
 
     private void fAddEntries(String url, Set<String> outlinks) {
         try (FileWriter writer = new FileWriter(this.functionalFile, true)) {
-            StringBuilder entry = new StringBuilder().append("\n");
+            StringBuilder entry = new StringBuilder();
             for (String outlink : outlinks) {
                 if (outlink.contains("/recipe")) {
                     entry.append(url).append(",").append(outlink).append("\n");
@@ -193,9 +193,7 @@ public class Crawler {
                 String href = link.attr("href").startsWith("/") ? "https://tasty.co" + link.attr("href") : link.attr("href");
                 // check to see if link is a tasty.co link
                 if (isLink(href)) {
-                    if (href.contains("/recipe")) {
-                        recipeLinks.add(href);
-                    }
+                    recipeLinks.add(href);
                     outlinks.add(href);
                 }
             }
