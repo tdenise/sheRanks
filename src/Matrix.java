@@ -1,7 +1,6 @@
 package src;
 
 import java.io.*;
-import java.text.*;
 import java.util.*;
 
 /*
@@ -19,8 +18,8 @@ public class Matrix {
     public static void main(String[] args) {
         Matrix m = new Matrix("src/functional.csv");
         System.out.print("\nOur crawl found " + m.getRecipeCount() + " unique recipes\n");
-        m.showAdjList(m);
-        //m.calcPageRank();
+        //m.showAdjList(m);
+        m.calcPageRank(0.15);
     }
 
     //pagerank obj that can return the list of the top recipes
@@ -110,35 +109,36 @@ public class Matrix {
     }
 
     /*
-    * Goal: implement iterative version from pgs 4-5 in PageRank lecture.
+    * Goal: implement iterative version that includes surfer model
     * Stores PageRank in final array.
-    * Problem: because of the number of nodes and the low number of interlinkage, most pageranks are 0!
+    * To do:
+    * 1. define function to figure out convergence to 1 (the sum of all PRs)
+    * 2. sort the page ranks to get the top 100
     * */
-    public void calcPageRank(){
-        //create new list with just the nodes
-        final double initial = 1/recipeCount;
+    public void calcPageRank(double l) {
+
+        //int probabilitySum=0, iteration=0;
+        final double lambda = l;
+        final double initial = 1 / (double) recipeCount;
+        System.out.println(initial);
         double[] ranks = new double[recipeCount];
-        NumberFormat nf = new DecimalFormat("#.####");
 
         //initialize ranks array
-        for(int i=0; i<recipeCount; i++){
-            ranks[i]=initial; //initialize at first iteration (init to 0)
-            //System.out.println(i + " :" +ranks[i]);
+        for (int i = 0; i < recipeCount; i++) {
+            ranks[i] = initial; //initialize at first iteration (init to 0)
+            // System.out.println(i + " :" + ranks[i]);
         }
 
         int outLinks;
         //num outlinks is the length of the list in the recipe list
-        for(int j=0; j<ranks.length; j++){
-                outLinks = adjList.get(j).size(); //size of the array = num outlinks
-                //System.out.println(outLinks);
-                if(outLinks>0){
-                    for(int k=0; k<outLinks; k++){
-                        ranks[j] = ranks[j] + (ranks[j]/outLinks);
-                        //System.out.println(nf.format(ranks[j]));
-                    }
-                }
-           System.out.println(nf.format(ranks[j]));
-            }
-        }
-
-    }
+              for (int j = 0; j < ranks.length; j++) {
+                  outLinks = adjList.get(j).size(); //size of the array = num outlinks
+                  if (outLinks > 0) {
+                      for (int k = 0; k < outLinks; k++) {
+                          ranks[j] += (lambda / (double) recipeCount) + (1 - lambda) * (ranks[k] / outLinks);
+                      }
+                  }
+                  System.out.println((ranks[j]));
+              }
+          }//end calcPageRank
+    }//end Matrix
