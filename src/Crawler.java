@@ -22,17 +22,18 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  **/
 public class Crawler {
     private String seed;
-    private Map<String, String> recipeLinks; // map of recipes to their inlinks
+    private Set<String> recipeLinks; // map of recipes to their inlinks
     private Set<String> crawled; // set to keep track of the recipe pages
 
     private WebDriver driver; // selenium web driver
 
     private File dir; // root directory for output
-    private File recipesFile; // csv file with crawl data
+    private File aestheticFile; // csv file with aesthetic crawl data
+    private File functionalFile; // csv file with functional crawl data
 
     public Crawler(String url) {
         this.seed = url;
-        this.recipeLinks = new HashMap<>();
+        this.recipeLinks = new HashSet<>();
         this.crawled = new HashSet<>();
 
         // chrome web driver settings (uncomment appropriate webdriver settings)
@@ -46,10 +47,10 @@ public class Crawler {
         // create the output file
         this.dir = new File(System.getProperty("user.dir"));
         this.dir.mkdir();
-        createOutFile();
+        createOutFiles();
 
         // add seed URL to links arraylist
-        this.recipeLinks.put(this.seed, this.seed);
+        this.recipeLinks.add(this.seed);
     }
 
     public void crawl() {
@@ -57,16 +58,16 @@ public class Crawler {
         crawl(this.seed);
 
         // crawl the remaining links
-        Sets.difference(recipeLinks.keySet(), crawled).forEach(link -> {
+        Sets.difference(recipeLinks, crawled).forEach(link -> {
             if (!crawled.contains(link)) {
                 crawl(link);
             }
         });
 
-        if (recipesFile.length() > 110) {
-            System.out.println("Done! Check out the " + recipesFile.getPath() + " file for results.");
+        if (aestheticFile.length() > 110) {
+            System.out.println("Done! Check out the " + aestheticFile.getPath() + " file for results.");
         } else {
-            System.out.println("Oops! Looks like the " + recipesFile.getPath() + " file is empty. Something went wrong :/");
+            System.out.println("Oops! Looks like the " + aestheticFile.getPath() + " file is empty. Something went wrong :/");
         }
 
         // close the chrome window
@@ -75,21 +76,26 @@ public class Crawler {
 
     private void crawl(String url) {
         try {
+            crawled.add(url);
+
             // use automated chrome to open up the url and then grab the document
             driver.get(url);
             Document d = url.contains("/recipe") ? crawlRecipe(url) : Jsoup.parse(driver.getPageSource());
 
+            // collect outlinks
+            Set<String> outlinks = getOutlinks(d, url);
+            fAddEntries(url, outlinks);
+
             // stop crawling outlinks once we've collected at most 200 recipes
-            if (recipeLinks.size() >= 200) {
+            if (crawled.size() >= 200) {
                 return;
             }
 
-            // collect outlinks
-            Set<String> outlinks = getOutlinks(d, url);
-
             // crawl the outlinks
             for (String link : outlinks) {
-                crawl(link);
+                if (!crawled.contains(link)) {
+                    crawl(link);
+                }
             }
         } catch (TimeoutException | NoSuchElementException e) {
             System.out.println("Couldn't load dynamic content for " + url);
@@ -98,10 +104,13 @@ public class Crawler {
         }
     }
 
-    private void createOutFile() {
-        this.recipesFile = new File(dir.getPath() + "/recipes.csv");
-        try (FileWriter writer = new FileWriter(this.recipesFile)) {
-            writer.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count,Inlink");
+    private void createOutFiles() {
+        this.aestheticFile = new File(dir.getPath() + "/aesthetic.csv");
+        this.functionalFile = new File(dir.getPath() + "/functional.csv");
+        try (FileWriter aWriter = new FileWriter(this.aestheticFile);
+             FileWriter fWriter = new FileWriter(this.functionalFile)) {
+            aWriter.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count");
+            fWriter.write("Recipe URL,Outlink URL");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -127,12 +136,8 @@ public class Crawler {
         // extract number of tips
         String tipsCt = grabTipsCt(d);
 
-        // get the inlink for the current link
-        String inlink = recipeLinks.get(url);
-
         // add recipe, url, percentage, and inlink to csv
-        addCsvEntry(recipeName, url, percentage, tipsCt, inlink);
-        crawled.add(url);
+        aAddEntry(recipeName, url, percentage, tipsCt);
 
         return d;
     }
@@ -149,14 +154,28 @@ public class Crawler {
         return tipsCtStr.split(" ")[0];
     }
 
-    private void addCsvEntry(String... inputs) {
-        try (FileWriter writer = new FileWriter(this.recipesFile, true)) {
+    private void aAddEntry(String... inputs) {
+        try (FileWriter writer = new FileWriter(this.aestheticFile, true)) {
             StringBuilder entry = new StringBuilder().append("\n");
             for (int i = 0; i < inputs.length; i++) {
                 String input = inputs[i];
                 entry.append(input);
                 if (i < inputs.length - 1) {
                     entry.append(",");
+                }
+            }
+            writer.write(entry.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void fAddEntries(String url, Set<String> outlinks) {
+        try (FileWriter writer = new FileWriter(this.functionalFile, true)) {
+            StringBuilder entry = new StringBuilder().append("\n");
+            for (String outlink : outlinks) {
+                if (outlink.contains("/recipe")) {
+                    entry.append(url).append(",").append(outlink).append("\n");
                 }
             }
             writer.write(entry.toString());
@@ -173,8 +192,10 @@ public class Crawler {
             for (Element link : urls) {
                 String href = link.attr("href").startsWith("/") ? "https://tasty.co" + link.attr("href") : link.attr("href");
                 // check to see if link is a tasty.co link
-                if (isLink(href) && !recipeLinks.containsKey(href)) {
-                    recipeLinks.put(href, inlink);
+                if (isLink(href)) {
+                    if (href.contains("/recipe")) {
+                        recipeLinks.add(href);
+                    }
                     outlinks.add(href);
                 }
             }
