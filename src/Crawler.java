@@ -1,21 +1,24 @@
-import java.io.*;
-import java.util.*;
-
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
-
-//import Jsoup library
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-
-// import Selenium for web driver capabilities
 import org.openqa.selenium.*;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+//import Jsoup library
+// import Selenium for web driver capabilities
 
 /**
  * Crawler object class.
@@ -24,17 +27,19 @@ public class Crawler {
     private String seed;
     private Set<String> recipeLinks; // map of recipes to their inlinks
     private Set<String> crawled; // set to keep track of the recipe pages
+    private SetMultimap<String, String> inlinkMap; // multi map to keep track of recipe inlinks
 
     private WebDriver driver; // selenium web driver
 
     private File dir; // root directory for output
+    private File inlinksFile; // csv file with crawl data
     private File aestheticFile; // csv file with aesthetic crawl data
-    private File functionalFile; // csv file with functional crawl data
 
     public Crawler(String url) {
         this.seed = url;
         this.recipeLinks = new HashSet<>();
         this.crawled = new HashSet<>();
+        this.inlinkMap = HashMultimap.create();
 
         // chrome web driver settings (uncomment appropriate webdriver settings)
         System.setProperty("webdriver.chrome.driver", "src/resources/chromedriver"); // mac
@@ -58,16 +63,15 @@ public class Crawler {
         crawl(this.seed);
 
         // crawl the remaining links
-        Sets.difference(recipeLinks, crawled).forEach(link -> {
-            if (!crawled.contains(link)) {
-                crawl(link);
-            }
-        });
+        Set<String> remaining = Sets.difference(recipeLinks, crawled);
+        remaining.forEach(this::crawl);
 
-        if (aestheticFile.length() > 110) {
-            System.out.println("Done! Check out the " + aestheticFile.getPath() + " file for results.");
+        writeInlinks();
+
+        if (inlinksFile.length() > 21) {
+            System.out.println("Done! Check out the " + inlinksFile.getPath() + " file for results.");
         } else {
-            System.out.println("Oops! Looks like the " + aestheticFile.getPath() + " file is empty. Something went wrong :/");
+            System.out.println("Oops! Looks like the " + inlinksFile.getPath() + " file is empty. Something went wrong :/");
         }
 
         // close the chrome window
@@ -80,16 +84,15 @@ public class Crawler {
 
             // use automated chrome to open up the url and then grab the document
             driver.get(url);
-            Document d = url.contains("/recipe") ? crawlRecipe(url) : Jsoup.parse(driver.getPageSource());
-
-            // collect outlinks
-            Set<String> outlinks = getOutlinks(d, url);
-            fAddEntries(url, outlinks);
+            Document d = url.contains("/recipe") ? loadRecipe(url) : Jsoup.parse(driver.getPageSource());
 
             // stop crawling outlinks once we've collected at most 200 recipes
-            if (crawled.size() >= 200) {
+            if (inlinkMap.keySet().size() >= 100) {
                 return;
             }
+
+            // collect outlinks
+            Set<String> outlinks = processLinks(d, url);
 
             // crawl the outlinks
             for (String link : outlinks) {
@@ -105,18 +108,18 @@ public class Crawler {
     }
 
     private void createOutFiles() {
+        this.inlinksFile = new File(dir.getPath() + "/inlinks.csv");
         this.aestheticFile = new File(dir.getPath() + "/aesthetic.csv");
-        this.functionalFile = new File(dir.getPath() + "/functional.csv");
         try (FileWriter aWriter = new FileWriter(this.aestheticFile);
-             FileWriter fWriter = new FileWriter(this.functionalFile)) {
-            aWriter.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count");
-            fWriter.write("Recipe URL,Outlink URL");
+             FileWriter writer = new FileWriter(this.inlinksFile)) {
+            aWriter.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count\n");
+            writer.write("Recipe URL,Inlink URL\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private Document crawlRecipe(String url) {
+    private Document loadRecipe(String url) {
         // generate dynamic content by scrolling to bottom
         WebElement element = driver.findElement(By.className("recipe-submit-cta"));
         ((JavascriptExecutor) driver)
@@ -137,7 +140,7 @@ public class Crawler {
         String tipsCt = grabTipsCt(d);
 
         // add recipe, url, percentage, and inlink to csv
-        aAddEntry(recipeName, url, percentage, tipsCt);
+        addEntry(recipeName, url, percentage, tipsCt);
 
         return d;
     }
@@ -154,14 +157,16 @@ public class Crawler {
         return tipsCtStr.split(" ")[0];
     }
 
-    private void aAddEntry(String... inputs) {
+    private void addEntry(String... inputs) {
         try (FileWriter writer = new FileWriter(this.aestheticFile, true)) {
-            StringBuilder entry = new StringBuilder().append("\n");
+            StringBuilder entry = new StringBuilder();
             for (int i = 0; i < inputs.length; i++) {
                 String input = inputs[i];
                 entry.append(input);
                 if (i < inputs.length - 1) {
                     entry.append(",");
+                } else {
+                    entry.append("\n");
                 }
             }
             writer.write(entry.toString());
@@ -169,22 +174,21 @@ public class Crawler {
             e.printStackTrace();
         }
     }
-
-    private void fAddEntries(String url, Set<String> outlinks) {
-        try (FileWriter writer = new FileWriter(this.functionalFile, true)) {
+    private void writeInlinks() {
+        try (FileWriter writer = new FileWriter(this.inlinksFile, true)) {
             StringBuilder entry = new StringBuilder();
-            for (String outlink : outlinks) {
-                if (outlink.contains("/recipe")) {
-                    entry.append(url).append(",").append(outlink).append("\n");
-                }
-            }
+            this.inlinkMap.forEach((url, inlink) -> {
+                    if(inlink.contains("/recipe")) {
+                        entry.append(url).append(",").append(inlink).append("\n");
+                    }
+            });
             writer.write(entry.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private Set<String> getOutlinks(Document d, String inlink) {
+    private Set<String> processLinks(Document d, String inlink) {
         Set<String> outlinks = new HashSet<>();
         try {
             Elements urls = d.select("a[href]");
@@ -195,6 +199,7 @@ public class Crawler {
                 if (isLink(href)) {
                     recipeLinks.add(href);
                     outlinks.add(href);
+                    inlinkMap.put(href, inlink);
                 }
             }
         } catch (Exception e) {
