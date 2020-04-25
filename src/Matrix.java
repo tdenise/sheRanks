@@ -127,13 +127,13 @@ public class Matrix {
             // System.out.println(i + " :" + ranks[i]);
         }
 
-        int outLinks;
+        int inlinks;
         //num outlinks is the length of the list in the recipe list
               for (int j = 0; j < ranks.length; j++) {
-                  outLinks = adjList.get(j).size(); //size of the array = num outlinks
-                  if (outLinks > 0) {
-                      for (int k = 0; k < outLinks; k++) {
-                          ranks[j] += (lambda / (double) recipeCount) + (1 - lambda) * (ranks[k] / outLinks);
+                  inlinks = adjList.get(j).size(); //size of the array = num inlinks
+                  if (inlinks > 0) {
+                      for (int k = 0; k < inlinks; k++) {
+                          ranks[j] += (lambda / (double) recipeCount) + (1 - lambda) * (ranks[k] / inlinks);
                       }
                   }
                   System.out.println((ranks[j]));
