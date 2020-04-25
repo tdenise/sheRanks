@@ -32,8 +32,9 @@ public class Crawler {
     private WebDriver driver; // selenium web driver
 
     private File dir; // root directory for output
-    private File inlinksFile; // csv file with crawl data
-    private File aestheticFile; // csv file with aesthetic crawl data
+    private File inlinksFile; // csv file with crawl data for inlinks
+    private File outlinksFile; // csv file with crawl data for outlinks
+    private File detailsFile; // csv file with details about each site
 
     public Crawler(String url) {
         this.seed = url;
@@ -68,8 +69,8 @@ public class Crawler {
 
         writeInlinks();
 
-        if (inlinksFile.length() > 21) {
-            System.out.println("Done! Check out the " + inlinksFile.getPath() + " file for results.");
+        if (inlinksFile.length() > 21 && outlinksFile.length() > 23) {
+            System.out.println("Done! Check out the " + inlinksFile.getPath() + " file for inlinks and " + outlinksFile.getPath() + " for outlinks.");
         } else {
             System.out.println("Oops! Looks like the " + inlinksFile.getPath() + " file is empty. Something went wrong :/");
         }
@@ -93,6 +94,7 @@ public class Crawler {
 
             // collect outlinks
             Set<String> outlinks = processLinks(d, url);
+            writeOutlinks(url, outlinks);
 
             // crawl the outlinks
             for (String link : outlinks) {
@@ -108,12 +110,16 @@ public class Crawler {
     }
 
     private void createOutFiles() {
+        this.detailsFile = new File(dir.getPath() + "/details.csv");
         this.inlinksFile = new File(dir.getPath() + "/inlinks.csv");
-        this.aestheticFile = new File(dir.getPath() + "/aesthetic.csv");
-        try (FileWriter aWriter = new FileWriter(this.aestheticFile);
-             FileWriter writer = new FileWriter(this.inlinksFile)) {
-            aWriter.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count\n");
-            writer.write("Recipe URL,Inlink URL\n");
+        this.outlinksFile = new File(dir.getPath() + "/outlinks.csv");
+        try (FileWriter dWriter = new FileWriter(this.detailsFile);
+             FileWriter iWriter = new FileWriter(this.inlinksFile);
+             FileWriter oWriter = new FileWriter(this.outlinksFile)
+        ) {
+            dWriter.write("Recipe Title,Recipe URL,\"Would Make Again\" %,Tips Count\n");
+            iWriter.write("Recipe URL,Inlink URL\n");
+            oWriter.write("Recipe URL,Outlink URL\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -158,7 +164,7 @@ public class Crawler {
     }
 
     private void addEntry(String... inputs) {
-        try (FileWriter writer = new FileWriter(this.aestheticFile, true)) {
+        try (FileWriter writer = new FileWriter(this.detailsFile, true)) {
             StringBuilder entry = new StringBuilder();
             for (int i = 0; i < inputs.length; i++) {
                 String input = inputs[i];
@@ -174,13 +180,28 @@ public class Crawler {
             e.printStackTrace();
         }
     }
+
+    private void writeOutlinks(String url, Set<String> outlinks) {
+        try (FileWriter writer = new FileWriter(this.outlinksFile, true)) {
+            StringBuilder entry = new StringBuilder();
+            for (String outlink : outlinks) {
+                if (outlink.contains("/recipe")) {
+                    entry.append(url).append(",").append(outlink).append("\n");
+                }
+            }
+            writer.write(entry.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void writeInlinks() {
         try (FileWriter writer = new FileWriter(this.inlinksFile, true)) {
             StringBuilder entry = new StringBuilder();
             this.inlinkMap.forEach((url, inlink) -> {
-                    if(inlink.contains("/recipe")) {
-                        entry.append(url).append(",").append(inlink).append("\n");
-                    }
+                if (url.contains("/recipe")) {
+                    entry.append(url).append(",").append(inlink).append("\n");
+                }
             });
             writer.write(entry.toString());
         } catch (IOException e) {

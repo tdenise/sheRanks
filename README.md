@@ -7,10 +7,9 @@ A PageRank analysis of Buzzfeed Tasty (tasty.co) - Popular Recipes
   * [Step Two - Install Dependencies](#step-two---install-dependencies)
   * [Step Three - Run The Crawler Locally](#step-three---run-the-crawler-locally)
 - [Crawler Results](#crawler-results-)
-  * [Recipe Name](#recipe-name)
-  * [Recipe URL](#recipe-url)
-  * ["Would Make Again" % and Number of Tips](#would-make-again--and-number-of-tips)
-  * [Inlink](#inlink)
+  * [Details](#detailscsv)
+  * [Inlinks](#inlinkscsv)
+  * [Outlinks](#outlinkscsv)
 - [Built With](#built-with-)
 - [Special Thanks To](#special-thanks-to-)
 
@@ -32,23 +31,21 @@ Make sure you have the following libraries installed for this project
 Now that you've installed the dependencies, you can run the sheRanks crawler locally! To do so, go ahead run the `CrawlerExample::main` method.
 
 ## Crawler Results 📊
-The sheRanks crawler produces a nice CSV file with the following format:
+The sheRanks crawler produces three nice CSV files:
 
-Recipe Name | Recipe URL | "Would Make Again" % | Number of Tips | Inlink
------- | ------------ | ---------------------- | ------ | ------
-Southwestern Sweet Potato Toast Recipe by Tasty | https://tasty.co/recipe/southwestern-sweet-potato-toast | 80 | 6 | https://tasty.co/topic/game-day
+#### details.csv
+This file contains details about each recipe that has been crawled. The number of lines in this file is the same as the number of unique recipes that have been crawled.
 
-#### Recipe Name
-The title of the recipe
+Recipe Name | Recipe URL | "Would Make Again" % / Number of Tips | Inlink
+------ | ------------ | ---------------------------- | ------
+The title of the recipe | The link to the recipe | !["Would Make Again" % and Number of Tips](https://user-images.githubusercontent.com/5050718/79623571-e6632980-80d1-11ea-9d6e-844a63c43d45.png)
+ | The link that led the crawler to this recipe
 
-#### Recipe URL
-The link to the recipe
+#### inlinks.csv
+This file contains recipes and their inlinks. This can be used to build a graph or adjacency list for page rank calculation.
 
-#### "Would Make Again" % and Number of Tips
-!["Would Make Again" % and Number of Tips](https://user-images.githubusercontent.com/5050718/79623571-e6632980-80d1-11ea-9d6e-844a63c43d45.png)
-
-#### Inlink
-The link that led the crawler to this recipe
+#### outlinks.csv
+This file contains recipes and their outlinks. This can be used to build a graph or adjacency list for page rank calculation.
 
 ## Built With 🛠
 [JSoup](https://jsoup.org/)
