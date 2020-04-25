@@ -38,8 +38,7 @@ This file contains details about each recipe that has been crawled. The number o
 
 Recipe Name | Recipe URL | "Would Make Again" % / Number of Tips | Inlink
 ------ | ------------ | ---------------------------- | ------
-The title of the recipe | The link to the recipe | !["Would Make Again" % and Number of Tips](https://user-images.githubusercontent.com/5050718/79623571-e6632980-80d1-11ea-9d6e-844a63c43d45.png)
- | The link that led the crawler to this recipe
+The title of the recipe | The link to the recipe | !["Would Make Again" % and Number of Tips](https://user-images.githubusercontent.com/5050718/79623571-e6632980-80d1-11ea-9d6e-844a63c43d45.png)| The link that led the crawler to this recipe
 
 #### inlinks.csv
 This file contains recipes and their inlinks. This can be used to build a graph or adjacency list for page rank calculation.
