@@ -87,7 +87,7 @@ public class Crawler {
             Document d = url.contains("/recipe") ? loadRecipe(url) : Jsoup.parse(driver.getPageSource());
 
             // stop crawling outlinks once we've collected at most 200 recipes
-            if (inlinkMap.keySet().size() >= 100) {
+            if (inlinkMap.keySet().size() >= 200) {
                 return;
             }
 
