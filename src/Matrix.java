@@ -1,5 +1,3 @@
-package src;
-
 import java.io.*;
 import java.util.*;
 
@@ -16,9 +14,9 @@ public class Matrix {
 
     //test Matrix
     public static void main(String[] args) {
-        Matrix m = new Matrix("src/functional.csv");
+        Matrix m = new Matrix("inlinks.csv");
         System.out.print("\nOur crawl found " + m.getRecipeCount() + " unique recipes\n");
-        //m.showAdjList(m);
+        m.showAdjList(m);
         m.calcPageRank(0.15);
     }
 
