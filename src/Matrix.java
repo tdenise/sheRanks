@@ -1,17 +1,18 @@
 import java.io.*;
 import java.util.*;
-
 /*
-* This Matrix object class takes in a file and generates an adjacency list
-* representing crawled webpages of a particular domain and their inlinks
-* to ultimately produce a pagerank.
+* This Matrix object class takes 2 files, inlinks.csv and outlinks.csv,
+* and generates two adjacency matrices. This class is based on our web crawler for
+* Tasty.co. The list of unique recipes is created from the inlinks.csv file.
+* The final PageRank is calculated using the Random Surfer Model and displays the top 100 recipes
+* based on PageRank.
 * */
 public class Matrix {
     private ArrayList<ArrayList<Integer>> adjInList = new ArrayList<>(); //adjacency list for inlinks
     private ArrayList<ArrayList<Integer>> adjOutList = new ArrayList<>(); //adjacency list for outlinks
     private File inlinkFile, outlinkFile;
     private ArrayList<String> recipeList = new ArrayList<>(); //list of unique recipes
-    private int recipeCount, edgeCount; //number of recipes and node indexes
+    private int recipeCount; //number of recipes and node indexes
 
     //test Matrix
     public static void main(String[] args) {
@@ -19,7 +20,6 @@ public class Matrix {
         System.out.print("\nOur crawl found " + m.getRecipeCount() + " unique recipes\n");
         //m.showInAdjList();
         //m.showOutAdjList();
-
         m.PageRank();
     }
 
@@ -38,27 +38,22 @@ public class Matrix {
         return recipeCount;
     }
 
-    //create adj matrix as an arraylist of lists that list the inlinks for
+    //create adj matrix as an arraylist of lists based on inlinks
     private void generateInLinkList(){
         try{
             Scanner sc = new Scanner(inlinkFile);
             String line;
             String [] splitLine; // splitLine[0]: URL, splitLine[1]: outlink
-
             sc.nextLine(); //skip header
             while(sc.hasNextLine()){
-                //ct++;
                 line = sc.nextLine();
                 splitLine = line.split(",");
-
-                //find the vertex number for the given recipe
-
                 int aIndex = recipeList.indexOf(splitLine[0]);
                 int bIndex = recipeList.indexOf(splitLine[1]);
 
-                //add to that arraylist in the list of lists
+                //add "edge" between recipes based on inklinks
                 if(!adjInList.get(aIndex).contains(bIndex)){
-                    adjInList.get(aIndex).add(bIndex); //add edge between recipe1 (aIndex) and recipe2 (bIndex)
+                    adjInList.get(aIndex).add(bIndex);
                 }
             }
         }
@@ -67,26 +62,25 @@ public class Matrix {
         }
     }
 
-    //create adj matrix as an arraylist of lists that list the inlinks for
+    //create adj matrix as an arraylist of lists based on outlinks
     private void generateOutLinkList(){
         try{
             Scanner sc = new Scanner(outlinkFile);
             String line;
             String [] splitLine; // splitLine[0]: URL, splitLine[1]: outlink
-
             sc.nextLine(); //skip header
             while(sc.hasNextLine()){
                 line = sc.nextLine();
                 splitLine = line.split(",");
 
-                //find the vertex number for the given recipe
+                //check that outlink recipes are in our unique list of recipes
                 if(recipeList.contains(splitLine[0]) && recipeList.contains(splitLine[1])){
                     int aIndex = recipeList.indexOf(splitLine[0]);
                     int bIndex = recipeList.indexOf(splitLine[1]);
 
                     //add to that arraylist in the list of lists
                     if(!adjOutList.get(aIndex).contains(bIndex)){
-                        adjOutList.get(aIndex).add(bIndex); //add edge between recipe1 (aIndex) and recipe2 (bIndex)
+                        adjOutList.get(aIndex).add(bIndex);
                     }
                 }
             }
@@ -96,8 +90,7 @@ public class Matrix {
         }
     }
 
-
-    //add unique recipes to an arraylist -- index in recipeList = node in the list
+    //add unique recipes to an arraylist --> index in recipeList = node in the list
     private void getRecipes(){
         String str;
         String[] sp;
@@ -128,7 +121,7 @@ public class Matrix {
         }
     }
 
-    //to display the adjacency matrix
+    //to display the inlink adjacency list
     public void showInAdjList(){
         System.out.println("Generated Adjacency List for Inlinks");
         System.out.print("========================");
@@ -140,6 +133,7 @@ public class Matrix {
         }
     }
 
+    //to display the outlink adjacency list
     public void showOutAdjList(){
         System.out.println("Generated Adjacency List for Outlinks");
         System.out.print("========================");
@@ -151,48 +145,60 @@ public class Matrix {
         }
     }
 
+    //public method retrieves the final array of ordered pagerank
     public void PageRank() {
         final double initial = 1 / (double) recipeCount;
         System.out.println("Iteration 0 --> All PageRanks set to initial value (1/number of unique recipes): "+initial);
         double[] initRanks = new double[recipeCount];
         final int iter= 0;
 
+        //initialize ranks to 1/recipeCount at iteration 0
         for(int i=0; i<initRanks.length; i++){
             initRanks[i]=initial;
         }
 
+        //get final ordered array of PageRanks
         double[] convergedPr = calcPR(0, initRanks, initial, false );
-        sortPageRank(convergedPr);
 
+        //call sortPageRank to display top 100 PRs
+        sortPageRank(convergedPr);
           }//end PageRank
 
-    //stop when average =1
+    /*
+    * Method: calcPR() implements the heart of the algorithm for PageRank based on the Random Surfer Model
+    *
+    * Parameters:
+    * -iteration = iteration number for the number of times PageRank has been calculated
+    * -lastCalculatedPR = array storing last computed PageRanks
+    * -lastCalculatedSum = sum of the last array of PageRanks - to check if 1.0 has been reached
+    * -conv = if conv is true, then the values have stopped changing
+    *
+    * */
     private double[] calcPR(int iteration, double[] lastCalculatedPR, double lastCalculatedSum, boolean conv){
 
-            //base case
+            //base case: iteration passed 1, the sum of the PageRanks is 1, and the PageRank values have converged
             if(iteration>1  && lastCalculatedSum>=1. && lastCalculatedSum<=1.000000000001 && conv==true){
                 System.out.println("Converged at Iteration: "+iteration + " with PageRank sum of: " + lastCalculatedSum);
                 return lastCalculatedPR;
             }
+
             else {
-                //to hold new ranks
-                final int iter = ++iteration;
-                double[] ranks = new double[lastCalculatedPR.length];
-                int numIn;
-                final double lambda = 0.2;
-                final double epsilon = .00001;
-                double inPRsummation, sumPR=0;
+                final int iter = ++iteration; //iteration number
+                double[] ranks = new double[lastCalculatedPR.length]; //hold calculated ranks
+                int numIn; //number of inlinks
+                final double lambda = 0.2; //for Random Surfer Model
+                final double errorMargin = .00001; //for convergence
+                double inPRsummation, sumPR=0; //summation for Random Surfer Model
 
                 //num outlinks is the length of the list in the recipe list
                 for (int j = 0; j < recipeList.size(); j++) { //for every recipe
                     numIn = adjInList.get(j).size(); //size of the array = num outlinks
-                    inPRsummation = 0;
+                    inPRsummation = 0; //have not summed PRs of inlinks yet
                         for (int k = 0; k < numIn; k++) { //for every inlink
-                            int linkedIndex = adjOutList.get(j).get(k);
+                            int linkedIndex = adjOutList.get(j).get(k); //get index for outlink
                             inPRsummation += (lastCalculatedPR[linkedIndex])/(adjOutList.get(linkedIndex).size());
                         }
-                    ranks[j] = (lambda / (double) recipeCount) + (1 - lambda) * (inPRsummation);
-
+                    ranks[j] = (lambda / (double) recipeCount) + (1 - lambda) * (inPRsummation); //Random Surfer Model
                     }
                     //get sum of pageranks
                     sumPR=(Arrays.stream(ranks).sum());
@@ -201,7 +207,7 @@ public class Matrix {
                 Boolean converges = true;
                 for(int b=0; b<ranks.length; b++){
                     //if values differ by more than .00001
-                    if(Math.abs(ranks[b]-lastCalculatedPR[b])>=epsilon){
+                    if(Math.abs(ranks[b]-lastCalculatedPR[b])>=errorMargin){
                         converges = false;
                         break; //exit loop, difference too large
                     }
@@ -222,7 +228,7 @@ public class Matrix {
                 }//end else
             }//end calcPR
 
-        //displays the top 100 recipes according to calculated pageranks
+        //displays the top 100 recipes according to calculated PageRanks
         public void sortPageRank(double[] ranks){
             HashMap<String, Double > calculatedRanks = new LinkedHashMap<>(); //map recipe and pagerank
             final HashMap<String, Double> sortedRanks = new LinkedHashMap<>(); //for sorted ranks and recipes
@@ -239,6 +245,7 @@ public class Matrix {
             System.out.println("================================= Displaying Top 100 Recipes Based on PageRank ========================================");
             //print all the ranks to test
 
+            //print top 100
             int count =1;
             Set<String> recipeKeys = sortedRanks.keySet();
             for(String rKey: recipeKeys){
@@ -246,9 +253,6 @@ public class Matrix {
                     System.out.println("("+count+") PageRank: " + sortedRanks.get(rKey) + "\tRecipe Link: "+ rKey);
                     count++;
                 }
-
             }//end loop to print top 100
-
         }//end sortPageRank
-
     }//end Matrix
