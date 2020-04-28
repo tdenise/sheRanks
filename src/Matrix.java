@@ -192,15 +192,18 @@ public class Matrix {
 
                 //num outlinks is the length of the list in the recipe list
                 for (int j = 0; j < recipeList.size(); j++) { //for every recipe
-                    numIn = adjInList.get(j).size(); //size of the array = num outlinks
-                    inPRsummation = 0; //have not summed PRs of inlinks yet
+                    numIn = adjInList.get(j).size(); //get num for this recipe, j
+                    inPRsummation = 0; //to sum PageRanks of inlinks
                         for (int k = 0; k < numIn; k++) { //for every inlink
                             int linkedIndex = adjOutList.get(j).get(k); //get index for outlink
+
+                            //sum every page rank for each inlink: PageRank of inlink from last iteration/num outlinks
                             inPRsummation += (lastCalculatedPR[linkedIndex])/(adjOutList.get(linkedIndex).size());
                         }
-                    ranks[j] = (lambda / (double) recipeCount) + (1 - lambda) * (inPRsummation); //Random Surfer Model
+                    //calculate rank based on Random Surfer Model
+                    ranks[j] = (lambda / (double) recipeCount) + (1 - lambda) * (inPRsummation);
                     }
-                    //get sum of pageranks
+                    //get sum of pageranks to check if they sum to 1
                     sumPR=(Arrays.stream(ranks).sum());
 
                 //check convergence
@@ -208,20 +211,25 @@ public class Matrix {
                 for(int b=0; b<ranks.length; b++){
                     //if values differ by more than .00001
                     if(Math.abs(ranks[b]-lastCalculatedPR[b])>=errorMargin){
-                        converges = false;
-                        break; //exit loop, difference too large
+                        converges = false; //the values are still changing drastically from one iteration to next
+                        break; //exit loop
                     }
                 }
 
+                //print status: iteration and sum of PageRank array at this iteration
                 System.out.println("\nIteration: " + iter + " --> Sum PageRank = " + sumPR );
 
+                //if the values have converged
                 if(converges==true){
-                    System.out.println("\n Converged!");
+                    System.out.println("\nConverged!");
+                    //this call will reach the base case
                     return calcPR(iter, ranks, sumPR, true);
                 }
 
+                //if the values have not converged
                 else {
                     System.out.println("\nNot all values have converged.");
+                    //run PageRank again
                     return calcPR(iter, ranks, sumPR, false);
                     }
 
