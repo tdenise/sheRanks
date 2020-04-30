@@ -1,22 +1,22 @@
 import java.io.*;
 import java.util.*;
 /*
-* This Matrix object class takes 2 files, inlinks.csv and outlinks.csv,
-* and generates two adjacency matrices. This class is based on our web crawler for
-* Tasty.co. The list of unique recipes is created from the inlinks.csv file.
-* The final PageRank is calculated using the Random Surfer Model and displays the top 100 recipes
-* based on PageRank.
+* This Matrix object class takes 3 files: inlinks.csv, outlinks.csv and details.csv generated from our crawler
+* from Tasty.co. In this class, we use the inlinks and outlinks file to build two adjacency matrices.
+* The list of unique recipes is created from the inlinks.csv file. The final PageRank is calculated using
+* the Random Surfer Model, displays the top 100 recipe URLs and their PageRanks, and outputs a detailedPR.csv
+* file that lists the top 100 recipes with their "Would Make Again %" and tip counts.
 * */
 public class Matrix {
     private ArrayList<ArrayList<Integer>> adjInList = new ArrayList<>(); //adjacency list for inlinks
     private ArrayList<ArrayList<Integer>> adjOutList = new ArrayList<>(); //adjacency list for outlinks
-    private File inlinkFile, outlinkFile;
+    private File inlinkFile, outlinkFile, detailedFile, outputPRFile, dir;
     private ArrayList<String> recipeList = new ArrayList<>(); //list of unique recipes
     private int recipeCount; //number of recipes and node indexes
 
     //test Matrix
     public static void main(String[] args) {
-        Matrix m = new Matrix("inlinks.csv", "outlinks.csv");
+        Matrix m = new Matrix("inlinks.csv", "outlinks.csv", "details.csv");
         System.out.print("\nOur crawl found " + m.getRecipeCount() + " unique recipes\n");
         //m.showInAdjList();
         //m.showOutAdjList();
@@ -24,11 +24,17 @@ public class Matrix {
     }
 
     //pagerank obj that can return the list of the top recipes
-    public Matrix(String inlinkFileName, String outlinkFileName){
+    public Matrix(String inlinkFileName, String outlinkFileName, String detailsFile){
         File f = new File(inlinkFileName);
         File f2 = new File(outlinkFileName);
+        File f3 = new File(detailsFile);
+        this.dir = new File(System.getProperty("user.dir"));
+
+        File outFile = new File(dir.getPath()+"/detailedPR.csv");
         this.inlinkFile = f;
         this.outlinkFile=f2;
+        this.detailedFile=f3;
+        this.outputPRFile = outFile;
         getRecipes(); //create arraylist for recipes (node # = recipeList index)
         generateInLinkList(); //create adjacency list to store edges
         generateOutLinkList();
@@ -237,9 +243,9 @@ public class Matrix {
             }//end calcPR
 
         //displays the top 100 recipes according to calculated PageRanks
-        public void sortPageRank(double[] ranks){
+        public HashMap<String, Double> sortPageRank(double[] ranks){
             HashMap<String, Double > calculatedRanks = new LinkedHashMap<>(); //map recipe and pagerank
-            final HashMap<String, Double> sortedRanks = new LinkedHashMap<>(); //for sorted ranks and recipes
+            HashMap<String, Double> sortedRanks = new LinkedHashMap<>(); //for sorted ranks and recipes
 
             for(int i=0; i<ranks.length; i++){
                 calculatedRanks.put(recipeList.get(i), ranks[i]); //add to map
@@ -262,5 +268,52 @@ public class Matrix {
                     count++;
                 }
             }//end loop to print top 100
+            makePageRankOutFile(sortedRanks);
+            return sortedRanks;
         }//end sortPageRank
+
+    //create file for page ranks, would make again and tips
+    public void makePageRankOutFile(HashMap<String, Double> hm){
+        HashMap<String, String> tipsMap = new HashMap<>();//hashmap for tips
+        HashMap<String, String> wouldMakeMap = new HashMap<>();//hashmap for would make again
+        String line;
+        String[] splitDetail;
+        StringBuilder sb = new StringBuilder();
+        int count = 1;
+        Set<String> recipeKeys = hm.keySet();
+
+        try{
+            FileWriter fw = new FileWriter(this.outputPRFile, true);
+            fw.write("PageRank,Recipe URL,\"Would Make Again\" %, Tips Count\n");
+            //read the contents of the details file
+
+            //check
+            Scanner sc = new Scanner(detailedFile);
+            sc.nextLine(); //skip header
+            while(sc.hasNextLine()){
+                line=sc.nextLine();
+                splitDetail=line.split(","); //0: recipe title, 1:url, 2:would, 3: tips count
+                if(recipeList.contains(splitDetail[1])){
+                    tipsMap.put(splitDetail[1], splitDetail[3]); //add recipe and tip count
+                    wouldMakeMap.put(splitDetail[1], splitDetail[2]); //add recipe and make again %
+                }
+            }
+            System.out.print(recipeKeys.size());
+
+            for(String rKey: recipeKeys){
+                if(count<=100){
+                        sb.append(hm.get(rKey)).append(",").append(rKey).append(",").append(wouldMakeMap.get(rKey))
+                           .append(",").append(tipsMap.get(rKey)).append("\n");
+                        count++;
+                }
+            }//end loop to print top 100
+
+            fw.write(sb.toString());
+            fw.close();
+            System.out.print(sb.toString());
+        }
+        catch(IOException e){
+            e.printStackTrace();
+            }
+        }//end makePageRankOutFile
     }//end Matrix
