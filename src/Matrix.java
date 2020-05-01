@@ -183,7 +183,7 @@ public class Matrix {
     private double[] calcPR(int iteration, double[] lastCalculatedPR, double lastCalculatedSum, boolean conv){
 
             //base case: iteration passed 1, the sum of the PageRanks is 1, and the PageRank values have converged
-            if(iteration>1  && lastCalculatedSum>=1. && lastCalculatedSum<=1.000000000001 && conv==true){
+            if(lastCalculatedSum>=1. && lastCalculatedSum<=1.000000000001 && conv==true){
                 System.out.println("Converged at Iteration: "+iteration + " with PageRank sum of: " + lastCalculatedSum);
                 return lastCalculatedPR;
             }
