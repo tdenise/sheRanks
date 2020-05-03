@@ -298,7 +298,6 @@ public class Matrix {
                     wouldMakeMap.put(splitDetail[1], splitDetail[2]); //add recipe and make again %
                 }
             }
-            System.out.print(recipeKeys.size());
 
             for(String rKey: recipeKeys){
                 if(count<=100){
@@ -310,7 +309,6 @@ public class Matrix {
 
             fw.write(sb.toString());
             fw.close();
-            System.out.print(sb.toString());
         }
         catch(IOException e){
             e.printStackTrace();
